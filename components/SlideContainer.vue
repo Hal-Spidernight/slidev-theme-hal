@@ -1,12 +1,15 @@
 <template>
   <Teleport to="#page-root">
-    <div
-      id="custom-background"
-      class="transition-background"
-      :style="{ '--shape-seed': seedNormalized }"
-    >
-      <slot />
-    </div>
+    <Transition name="shape-fade">
+      <div
+        id="custom-background"
+        class="transition-background"
+        :style="{ '--shape-seed': seedNormalized }"
+        :key="currentNavState"
+      >
+        <slot />
+      </div>
+    </Transition>
   </Teleport>
 </template>
 <script setup lang="ts">
@@ -43,6 +46,8 @@ const seedNormalized = computed(() => {
   --shape-pos-x: calc(25% + var(--shape-seed) * 50%);
   --shape-size: calc(30% + var(--shape-seed) * 50%);
   background-color: var(--color-bg, transparent);
+  width: 150%;
+  height: 150%;
 }
 
 /* floating soft shapes using pseudo elements */
@@ -84,5 +89,26 @@ const seedNormalized = computed(() => {
 .transition-background > * {
   position: relative;
   z-index: 1;
+}
+
+/* アニメーション中の状態 */
+.shape-fade-enter-active,
+.shape-fade-leave-active {
+  /* opacityと、もしあれば transform をトランジションの対象に */
+  transition:
+    opacity 2s ease-in-out,
+    transform 2s ease-in-out;
+}
+
+/* Enter (新しい要素が入ってくる) の開始状態 と Leave (古い要素が消える) の終了状態 */
+.shape-fade-enter-from,
+.shape-fade-leave-to {
+  opacity: 0;
+}
+
+/* 古い要素と新しい要素が重ならないように、位置を調整（任意） */
+.shape-fade-leave-active {
+  position: absolute;
+  inset: 0;
 }
 </style>

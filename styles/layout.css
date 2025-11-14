@@ -17,6 +17,7 @@
 .dark .slidev-slide-content {
   --un-bg-opacity: 0 !important;
   background-color: transparent !important;
+  z-index:10;
 }
 
 .slidev-layout.cover,
