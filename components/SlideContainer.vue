@@ -4,8 +4,8 @@
       <div
         id="custom-background"
         class="transition-background"
-        :style="{ '--shape-seed': seedNormalized }"
         :key="currentNavState"
+        :style="cssVars"
       >
         <slot />
       </div>
@@ -16,7 +16,7 @@
 import { ref, computed, watch } from "vue";
 import { useSlideContext } from "@slidev/client";
 
-const { $nav } = useSlideContext();
+const { $nav, $slidev } = useSlideContext();
 
 const currentNavState = computed(() => {
   return $nav.value.currentPage;
@@ -36,18 +36,95 @@ const seedNormalized = computed(() => {
   const v = Number(backGroundShape.value) || 0;
   return v - Math.floor(v);
 });
+
+const shapeHueColor = computed(() => $slidev.themeConfigs.hueColor ?? 0);
+
+// カラーバイアスを適用したHue計算
+const shapeHue = computed(() => {
+  // colorBias が文字列（カラー値）の場合はそのまま返す
+  if (typeof shapeHueColor.value === "string") {
+    return shapeHueColor.value;
+  }
+  // colorBias が数値（Hueオフセット）の場合は計算
+  const baseHue = seedNormalized.value * 360;
+  return (baseHue + shapeHueColor.value) % 360;
+});
+
+// ランダム値に基づいて形状タイプを決定
+const shapeType = computed(() => {
+  const type = Math.floor(seedNormalized.value * 5);
+  return type; // 0-4: circle, ellipse, blob, star, wavy
+});
+
+// 形状タイプに基づいて背景イメージを生成
+// Provide a CSS-friendly color string; if shapeHue is numeric produce an HSL color, otherwise pass-through string
+const shapeColorCss = computed(() => {
+  const h = shapeHue.value;
+  if (typeof h === "string") return h;
+  return `hsl(${h} 65% 55%)`;
+});
+
+const shapeGradient = computed(() => {
+  const shapeT = shapeType.value;
+
+  // Use CSS variables for position and color so pseudo elements pick them up
+  // color is provided through --shape-color (a full color string)
+  if (shapeT === 0) {
+    return `radial-gradient(circle at var(--shape-pos-x) var(--shape-pos-y), color-mix(in srgb, var(--shape-color) 50%, transparent) 0%, transparent 40%)`;
+  }
+  if (shapeT === 1) {
+    return `radial-gradient(ellipse var(--shape-size) var(--shape-size) at var(--shape-pos-x) var(--shape-pos-y), color-mix(in srgb, var(--shape-color) 50%, transparent) 0%, transparent 40%)`;
+  }
+  if (shapeT === 2) {
+    return `radial-gradient(ellipse var(--shape-size) var(--shape-size) at var(--shape-pos-x) var(--shape-pos-y), color-mix(in srgb, var(--shape-color) 50%, transparent) 0%, transparent 40%)`;
+  }
+  // fallback / blob-like
+  return `radial-gradient(circle at var(--shape-pos-x) var(--shape-pos-y), color-mix(in srgb, var(--shape-color) 50%, transparent) 0%, transparent 40%)`;
+});
+
+// computed object of CSS variables to attach to the wrapper element via :style
+const cssVars = computed(() => {
+  // derive a second positional axis to vary Y differently from X
+  const posYNormalized = (seedNormalized.value * 0.73) % 1;
+  // small offsets for transforms to make motion less uniform
+  const offsetX = `${(seedNormalized.value - 0.5) * 20}%`;
+  const offsetY = `${(posYNormalized - 0.5) * 18}%`;
+  const scale = `${1 + seedNormalized.value * 0.45}`;
+  const blurPx = `${4 + seedNormalized.value * 12}px`;
+
+  return {
+    // gradient for ::before
+    "--shape-gradient": shapeGradient.value,
+    // a plain color (no alpha) usable with color-mix
+    "--shape-color": shapeColorCss.value,
+    // position and size (computed strings so CSS calc can evaluate)
+    "--shape-pos-x": `calc(25% + ${seedNormalized.value} * 50%)`,
+    "--shape-pos-y": `calc(20% + ${posYNormalized} * 60%)`,
+    "--shape-size": `calc(30% + ${seedNormalized.value} * 20%)`,
+    // type as number for calc-based rotation
+    "--shape-type": `${shapeType.value}`,
+    // small transform offsets, scale and blur for softer edges
+    "--shape-offset-x": offsetX,
+    "--shape-offset-y": offsetY,
+    "--shape-scale": scale,
+    "--shape-blur": blurPx,
+  };
+});
 </script>
 <style scoped>
+.transition-background::before {
+  background-image: var(--shape-gradient);
+}
+
 .transition-background {
   position: relative;
   overflow: hidden;
-  /* basic CSS variables derived from the seed (0..1) */
-  --shape-hue: calc(var(--shape-seed) * 360);
-  --shape-pos-x: calc(25% + var(--shape-seed) * 50%);
-  --shape-size: calc(30% + var(--shape-seed) * 50%);
+  /* fallbacks (overridden by inline --shape-pos-x/--shape-size from :style) */
+  --shape-pos-x: 50%;
+  --shape-size: 30%;
   background-color: var(--color-bg, transparent);
-  width: 150%;
-  height: 150%;
+  width: 140%;
+  height: 140%;
 }
 
 /* floating soft shapes using pseudo elements */
@@ -62,27 +139,32 @@ const seedNormalized = computed(() => {
 }
 
 .transition-background::before {
-  background-image: radial-gradient(
-    circle at var(--shape-pos-x) 30%,
-    hsl(var(--shape-hue) 70% 60% / 0.18) 0%,
-    transparent 40%
-  );
-  transform: translate3d(-10%, -5%, 0) scale(1.1);
+  transform: translate3d(var(--shape-offset-x), var(--shape-offset-y), 0) scale(var(--shape-scale))
+    rotate(calc(var(--shape-type) * 15deg));
   transition:
     transform 1.5s ease,
     opacity 1.5s ease;
+  filter: blur(var(--shape-blur));
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 200% 200%;
+  will-change: transform, opacity;
 }
 
 .transition-background::after {
+  /* a soft complementary glow using the same --shape-color via color-mix to add transparency */
   background-image: radial-gradient(
-    circle at calc(100% - var(--shape-pos-x)) 80%,
-    hsl(calc(var(--shape-hue) + 60) 65% 55% / 0.12) 0%,
+    circle at calc(100% - var(--shape-pos-x)) calc(100% - var(--shape-pos-y)),
+    color-mix(in srgb, var(--shape-color) 15%, transparent) 0%,
     transparent 45%
   );
-  transform: translate3d(8%, 12%, 0) scale(1.15) rotate(8deg);
+  transform: translate3d(calc(var(--shape-offset-x) * -0.6), calc(var(--shape-offset-y) * -0.6), 0) scale(calc(var(--shape-scale) * 1.15)) rotate(8deg);
   transition:
     transform 1.5s ease,
     opacity 1.5s ease;
+  filter: blur(calc(var(--shape-blur) * 2));
+  background-repeat: no-repeat;
+  background-size: 220% 220%;
 }
 
 /* ensure content sits above the background shapes */

@@ -1,6 +1,7 @@
 ---
 theme: ./
-
+themeConfigs:
+  hueColor: "#ff00aa"
 ---
 
 # Slidev Theme Starter
