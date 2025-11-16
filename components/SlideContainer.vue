@@ -136,7 +136,7 @@ const cssVars = computed(() => {
   --shape-color: hsl(220 15% 60%);
   background-color: var(--color-bg, transparent);
   width: 110%;
-  height: 130%;
+  height: 120%;
 }
 
 /* floating soft shapes using pseudo elements */
@@ -155,7 +155,8 @@ const cssVars = computed(() => {
   transform: none;
   transition:
     opacity 1s ease,
-    clip-path 3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    clip-path 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    background-color 1.5s ease;
   opacity: 0.85;
   background-repeat: no-repeat;
   background-position: center;
