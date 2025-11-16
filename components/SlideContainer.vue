@@ -1,15 +1,8 @@
 <template>
   <Teleport to="#page-root">
-    <Transition name="shape-fade">
-      <div
-        id="custom-background"
-        class="transition-background"
-        :key="currentNavState"
-        :style="cssVars"
-      >
-        <slot />
-      </div>
-    </Transition>
+    <div id="custom-background" class="transition-background" :style="cssVars">
+      <slot />
+    </div>
   </Teleport>
 </template>
 <script setup lang="ts">
@@ -18,12 +11,10 @@ import { useSlideContext } from "@slidev/client";
 
 const { $nav, $slidev } = useSlideContext();
 
-const currentNavState = computed(() => {
-  return $nav.value.currentPage;
-});
+const currentNavState = computed(() => $nav.value.currentPage);
 
 /**
- * 背景用のランダムシェイプのシード値
+ * 背景用のシード値（既存挙動を踏襲しつつ、外部propsで上書き可能）
  */
 const backGroundShape = ref($nav.value.currentPage * Math.random());
 
@@ -41,90 +32,111 @@ const shapeHueColor = computed(() => $slidev.themeConfigs.hueColor ?? 0);
 
 // カラーバイアスを適用したHue計算
 const shapeHue = computed(() => {
-  // colorBias が文字列（カラー値）の場合はそのまま返す
   if (typeof shapeHueColor.value === "string") {
     return shapeHueColor.value;
   }
-  // colorBias が数値（Hueオフセット）の場合は計算
   const baseHue = seedNormalized.value * 360;
   return (baseHue + shapeHueColor.value) % 360;
 });
 
-// ランダム値に基づいて形状タイプを決定
-const shapeType = computed(() => {
-  const type = Math.floor(seedNormalized.value * 5);
-  return type; // 0-4: circle, ellipse, blob, star, wavy
-});
-
-// 形状タイプに基づいて背景イメージを生成
-// Provide a CSS-friendly color string; if shapeHue is numeric produce an HSL color, otherwise pass-through string
+// Provide a CSS-friendly color string; if numeric produce an HSL color
 const shapeColorCss = computed(() => {
   const h = shapeHue.value;
   if (typeof h === "string") return h;
   return `hsl(${h} 65% 55%)`;
 });
 
-const shapeGradient = computed(() => {
-  const shapeT = shapeType.value;
+// Props: animation control
+const props = withDefaults(
+  defineProps<{
+    animate?: boolean;
+    speed?: number;
+    pointsCount?: number;
+  }>(),
+  {
+    animate: true,
+    speed: 1,
+    pointsCount: 7,
+  }
+);
 
-  // Use CSS variables for position and color so pseudo elements pick them up
-  // color is provided through --shape-color (a full color string)
-  if (shapeT === 0) {
-    return `radial-gradient(circle at var(--shape-pos-x) var(--shape-pos-y), color-mix(in srgb, var(--shape-color) 50%, transparent) 0%, transparent 40%)`;
+// --- clip-path ベースへ移行 -----------------------------------------------
+// シード値に基づき決定論的な擬似乱数を生成し、clip-path: polygon(...) を作る
+function mulberry32(a: number) {
+  return function () {
+    let t = (a += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// animation parameter: use page number (scaled) as the time/seed driver
+// each page gets a deterministic animation phase based on currentNavState
+const time = computed(() => currentNavState.value * (props.speed ?? 1));
+
+// compute animated clip-path using deterministic per-page seed + time
+const clipPathValue = computed(() => {
+  const base = Math.floor((Number(backGroundShape.value) || 0) * 1e9);
+  const rnd = mulberry32(base || 1);
+
+  const pointsCount = props.pointsCount ?? 7;
+  const cx = 50;
+  const cy = 40;
+  const minR = 15; // percent radius
+  const maxR = 50;
+
+  const t = time.value * (props.speed ?? 1);
+
+  const pts: string[] = [];
+  for (let i = 0; i < pointsCount; i++) {
+    const baseAngle = (i / pointsCount) * Math.PI * 2;
+    const angleJitter = (rnd() - 0.5) * 0.6;
+    const baseR = minR + rnd() * (maxR - minR);
+
+    const angle = baseAngle + angleJitter + Math.sin(t + i * 0.9) * 0.35;
+    const r = baseR + Math.sin(t * 1.2 + i * 1.3) * ((maxR - minR) * 0.12);
+
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+    pts.push(`${x.toFixed(2)}% ${y.toFixed(2)}%`);
   }
-  if (shapeT === 1) {
-    return `radial-gradient(ellipse var(--shape-size) var(--shape-size) at var(--shape-pos-x) var(--shape-pos-y), color-mix(in srgb, var(--shape-color) 50%, transparent) 0%, transparent 40%)`;
-  }
-  if (shapeT === 2) {
-    return `radial-gradient(ellipse var(--shape-size) var(--shape-size) at var(--shape-pos-x) var(--shape-pos-y), color-mix(in srgb, var(--shape-color) 50%, transparent) 0%, transparent 40%)`;
-  }
-  // fallback / blob-like
-  return `radial-gradient(circle at var(--shape-pos-x) var(--shape-pos-y), color-mix(in srgb, var(--shape-color) 50%, transparent) 0%, transparent 40%)`;
+
+  return `polygon(${pts.join(", ")})`;
 });
 
-// computed object of CSS variables to attach to the wrapper element via :style
 const cssVars = computed(() => {
-  // derive a second positional axis to vary Y differently from X
-  const posYNormalized = (seedNormalized.value * 0.73) % 1;
-  // small offsets for transforms to make motion less uniform
-  const offsetX = `${(seedNormalized.value - 0.5) * 20}%`;
-  const offsetY = `${(posYNormalized - 0.5) * 18}%`;
-  const scale = `${1 + seedNormalized.value * 0.45}`;
-  const blurPx = `${4 + seedNormalized.value * 12}px`;
-
   return {
-    // gradient for ::before
-    "--shape-gradient": shapeGradient.value,
-    // a plain color (no alpha) usable with color-mix
+    "--clip-path": clipPathValue.value,
     "--shape-color": shapeColorCss.value,
-    // position and size (computed strings so CSS calc can evaluate)
-    "--shape-pos-x": `calc(25% + ${seedNormalized.value} * 50%)`,
-    "--shape-pos-y": `calc(20% + ${posYNormalized} * 60%)`,
-    "--shape-size": `calc(30% + ${seedNormalized.value} * 20%)`,
-    // type as number for calc-based rotation
-    "--shape-type": `${shapeType.value}`,
-    // small transform offsets, scale and blur for softer edges
-    "--shape-offset-x": offsetX,
-    "--shape-offset-y": offsetY,
-    "--shape-scale": scale,
-    "--shape-blur": blurPx,
+    "--glow-blur": `28px`,
+    "--glow-opacity": `0.35`,
+    "--glow-scale": `1.06`,
+    "--clip-blur": `10px`,
+    "--clip-blur-scale": `1.03`,
   };
 });
+// -------------------------------------------------------------------------
 </script>
 <style scoped>
 .transition-background::before {
-  background-image: var(--shape-gradient);
+  /* clip-path を使ってマスクされた単色の図形を描く */
+  background: var(--shape-color);
+  clip-path: var(--clip-path);
 }
 
 .transition-background {
   position: relative;
   overflow: hidden;
-  /* fallbacks (overridden by inline --shape-pos-x/--shape-size from :style) */
-  --shape-pos-x: 50%;
-  --shape-size: 30%;
+  /* fallbacks (overridden by inline vars from :style) */
+
+  --clip-path: polygon(50% 20%, 80% 50%, 60% 80%, 40% 80%, 20% 50%);
+  filter: blur(5rem) brightness(1.5) contrast(1.5) saturate(1.1);
+  opacity: 0.4;
+  --shape-color: hsl(220 15% 60%);
   background-color: var(--color-bg, transparent);
-  width: 140%;
-  height: 140%;
+  width: 110%;
+  height: 130%;
 }
 
 /* floating soft shapes using pseudo elements */
@@ -135,36 +147,25 @@ const cssVars = computed(() => {
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  mix-blend-mode: screen;
+  mix-blend-mode: normal;
 }
 
 .transition-background::before {
-  transform: translate3d(var(--shape-offset-x), var(--shape-offset-y), 0) scale(var(--shape-scale))
-    rotate(calc(var(--shape-type) * 15deg));
+  /* no transform/blur by default for sharp clip-path shape */
+  transform: none;
   transition:
-    transform 1.5s ease,
-    opacity 1.5s ease;
-  filter: blur(var(--shape-blur));
+    opacity 1s ease,
+    clip-path 3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  opacity: 0.85;
   background-repeat: no-repeat;
   background-position: center;
-  background-size: 200% 200%;
-  will-change: transform, opacity;
+  background-size: cover;
+  will-change: opacity, clip-path;
 }
 
 .transition-background::after {
-  /* a soft complementary glow using the same --shape-color via color-mix to add transparency */
-  background-image: radial-gradient(
-    circle at calc(100% - var(--shape-pos-x)) calc(100% - var(--shape-pos-y)),
-    color-mix(in srgb, var(--shape-color) 15%, transparent) 0%,
-    transparent 45%
-  );
-  transform: translate3d(calc(var(--shape-offset-x) * -0.6), calc(var(--shape-offset-y) * -0.6), 0) scale(calc(var(--shape-scale) * 1.15)) rotate(8deg);
-  transition:
-    transform 1.5s ease,
-    opacity 1.5s ease;
-  filter: blur(calc(var(--shape-blur) * 2));
-  background-repeat: no-repeat;
-  background-size: 220% 220%;
+  /* no secondary element for now (keep markup simpler) */
+  display: none;
 }
 
 /* ensure content sits above the background shapes */
@@ -177,9 +178,7 @@ const cssVars = computed(() => {
 .shape-fade-enter-active,
 .shape-fade-leave-active {
   /* opacityと、もしあれば transform をトランジションの対象に */
-  transition:
-    opacity 2s ease-in-out,
-    transform 2s ease-in-out;
+  transition: transform 2s ease-in-out;
 }
 
 /* Enter (新しい要素が入ってくる) の開始状態 と Leave (古い要素が消える) の終了状態 */
