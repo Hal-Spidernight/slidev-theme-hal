@@ -137,6 +137,7 @@ const cssVars = computed(() => {
   background-color: var(--color-bg, transparent);
   width: 110%;
   height: 120%;
+  z-index: -1; /* NOTE: slidevのメニューが隠れてしまうため-1に */
 }
 
 /* floating soft shapes using pseudo elements */
