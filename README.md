@@ -25,6 +25,11 @@ Add the following frontmatter to your `slides.md`. Start Slidev then it will pro
 
 <pre><code>---
 theme: <b>'slidev-theme-hal'</b>
+themeConfig:
+  company: Company Name
+  author: Hal
+  logo: "./images/event_logo.svg"
+  logoWidth: "180px"
 ---</code></pre>
 
 Learn more about [how to use a theme](https://sli.dev/guide/theme-addon#use-theme).
