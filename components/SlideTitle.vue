@@ -2,13 +2,20 @@
   <h1 class="title-text">
     {{ $slidev.configs.title }}
   </h1>
-  <div class="mt-8">
-    <p>
-      {{ $slidev.themeConfigs.company }}
-    </p>
-    <p class="author-text">
-      {{ $slidev.themeConfigs.author }}
-    </p>
+  <div class="flex mt-12">
+    <div class="justify-center">
+      <p>
+        {{ $slidev.themeConfigs.company }}
+      </p>
+      <p class="author-text">
+        {{ $slidev.themeConfigs.author }}
+      </p>
+    </div>
+    <img
+      class="ml-auto mr-8 items-center my-auto"
+      :style="{ width: $slidev.themeConfigs.logoWidth || '150px' }"
+      :src="$slidev.themeConfigs.logo"
+    />
   </div>
 </template>
 <script setup lang="ts">
