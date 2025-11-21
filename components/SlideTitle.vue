@@ -17,9 +17,16 @@
       :src="$slidev.themeConfigs.logo"
     />
   </div>
+  <RenderWhen context="print">
+    <SlideContainer
+      style="position: fixed; top: 0; left: 0; overflow: visible"
+    />
+  </RenderWhen>
 </template>
 <script setup lang="ts">
 import { useSlideContext } from "@slidev/client";
+import SlideContainer from "./SlideContainer.vue";
+
 const { $slidev } = useSlideContext();
 </script>
 <style scoped>

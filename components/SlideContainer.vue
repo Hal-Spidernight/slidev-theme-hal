@@ -1,9 +1,7 @@
 <template>
-  <Teleport to="#page-root">
-    <div id="custom-background" class="transition-background" :style="cssVars">
-      <slot />
-    </div>
-  </Teleport>
+  <div id="custom-background" class="transition-background" :style="cssVars">
+    <slot />
+  </div>
 </template>
 <script setup lang="ts">
 import { ref, computed, watch } from "vue";
@@ -154,8 +152,7 @@ const cssVars = computed(() => {
 .transition-background::before {
   /* no transform/blur by default for sharp clip-path shape */
   transform: none;
-  transition:
-    opacity 1s ease,
+  transition: opacity 1s ease,
     clip-path 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94),
     background-color 1.5s ease;
   opacity: 0.85;

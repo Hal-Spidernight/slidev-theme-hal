@@ -4,7 +4,14 @@
       <SlideTitle />
     </div>
   </div>
-  <SlideContainer />
+  <RenderWhen context="print">
+    <SlideContainer
+      style="position: fixed; top: 0; left: 0; overflow: visible"
+    />
+  </RenderWhen>
+  <Teleport to="#page-root">
+    <SlideContainer />
+  </Teleport>
 </template>
 
 <script setup lang="ts">
