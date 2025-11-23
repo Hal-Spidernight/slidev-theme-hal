@@ -1,5 +1,5 @@
 <template>
-  <h1 class="title-text">
+  <h1 class="title-text font-bold">
     {{ $slidev.configs.title }}
   </h1>
   <div class="flex mt-12">
