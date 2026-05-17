@@ -30,7 +30,20 @@ themeConfig:
   author: Hal
   logo: "./images/event_logo.svg"
   logoWidth: "180px"
+  titleSize: "3rem"
+  authorSize: "2.5rem"
 ---</code></pre>
+
+### Theme config options
+
+| Key          | Description                              | Default   |
+| ------------ | ---------------------------------------- | --------- |
+| `company`    | Company name shown on the title slide    | —         |
+| `author`     | Author name shown on the title slide     | —         |
+| `logo`       | Path or URL of the logo image            | —         |
+| `logoWidth`  | Width of the logo image                  | `150px`   |
+| `titleSize`  | Font size of the slide title (`SlideTitle`) | `3rem`   |
+| `authorSize` | Font size of the author name             | `2.5rem`  |
 
 Learn more about [how to use a theme](https://sli.dev/guide/theme-addon#use-theme).
 
