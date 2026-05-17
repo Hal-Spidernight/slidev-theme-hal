@@ -1,5 +1,8 @@
 <template>
-  <h1 class="title-text font-bold">
+  <h1
+    class="title-text font-bold"
+    :style="{ fontSize: ($slidev.themeConfigs.titleSize || '3rem') + ' !important' }"
+  >
     {{ $slidev.configs.title }}
   </h1>
   <div class="flex mt-12">
@@ -7,7 +10,10 @@
       <p>
         {{ $slidev.themeConfigs.company }}
       </p>
-      <p class="author-text">
+      <p
+        class="author-text"
+        :style="{ fontSize: ($slidev.themeConfigs.authorSize || '2.5rem') + ' !important' }"
+      >
         {{ $slidev.themeConfigs.author }}
       </p>
     </div>
@@ -31,12 +37,10 @@ const { $slidev } = useSlideContext();
 </script>
 <style scoped>
 .title-text {
-  font-size: 3rem !important;
   white-space: pre-wrap;
 }
 .author-text {
   opacity: 0.8 !important;
-  font-size: 2.5rem !important;
   white-space: pre-wrap;
   line-height: 100% !important;
 }
